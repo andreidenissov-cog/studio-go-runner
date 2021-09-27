@@ -266,6 +266,33 @@ function retry {
   done
 }
 
+function redact_env() {
+    # List of key fragments that are unsafe
+    unsafe_key_fragments="ACCOUNT AUTH CREDENTIALS KEY PASS SECRET TOKEN USER"
+
+    # Get a list of env var keys
+    keys=\`printenv | awk 'BEGIN { FS = "=" } ; { print $1 }'\`
+    for key in $keys
+    do
+        # Find each value of each key in the env
+        value=\`printenv | grep "${key}=" | awk 'BEGIN { FS = "=" } ; { print $2 }'\`
+
+        # Loop through each unsafe key fragment to see if the key has a piece
+        for unsafe_key_fragment in $unsafe_key_fragments
+        do
+            unsafe_found=\`echo ${key} | grep ${unsafe_key_fragment}\`
+            if [ "x${unsafe_found}" != "x" ]
+            then
+                # The key has a piece. Redact the contents when spitting out env.
+                value="<redacted>"
+            fi
+        done
+
+        # Print out the key/value pair
+        echo "${key}=${value}"
+    done
+}
+
 set -v
 date
 date -u
