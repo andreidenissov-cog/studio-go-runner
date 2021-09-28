@@ -237,7 +237,7 @@ func (p *VirtualEnv) Make(alloc *resources.Allocated, e interface{}) (err kv.Err
 
 	// Create a shell script that will do everything needed to run
 	// the python environment in a virtual env
-	tmpl, errGo := template.New("pythonRunner").Parse(
+	scriptText :=
 		`#!/bin/bash -x
 echo "{\"studioml\": {\"log\": [{\"ts\": \"` + "`" + `date -u -Ins` + "`" + `\", \"msg\":\"Init\"},{\"ts\":\"0\", \"msg\":\"\"}]}}" | jq -c '.'
 sleep 2
@@ -271,16 +271,16 @@ function redact_env() {
     unsafe_key_fragments="ACCOUNT AUTH CREDENTIALS KEY PASS SECRET TOKEN USER"
 
     # Get a list of env var keys
-    keys=\`printenv | awk 'BEGIN { FS = "=" } ; { print $1 }'\`
+    keys=@printenv | awk 'BEGIN { FS = "=" } ; { print $1 }'@
     for key in $keys
     do
         # Find each value of each key in the env
-        value=\`printenv | grep "${key}=" | awk 'BEGIN { FS = "=" } ; { print $2 }'\`
+        value=@printenv | grep "${key}=" | awk 'BEGIN { FS = "=" } ; { print $2 }'@
 
         # Loop through each unsafe key fragment to see if the key has a piece
         for unsafe_key_fragment in $unsafe_key_fragments
         do
-            unsafe_found=\`echo ${key} | grep ${unsafe_key_fragment}\`
+            unsafe_found=@echo ${key} | grep ${unsafe_key_fragment}@
             if [ "x${unsafe_found}" != "x" ]
             then
                 # The key has a piece. Redact the contents when spitting out env.
@@ -293,6 +293,15 @@ function redact_env() {
     done
 }
 
+set +v
+echo "Using env"
+{{if .Env}}
+{{range $key, $value := .Env}}
+export {{$key}}="{{$value}}"
+{{end}}
+{{end}}
+echo "Done env"
+redact_env
 set -v
 date
 date -u
@@ -303,13 +312,6 @@ hostname
 set -e
 echo "{\"studioml\": {\"load_time\": \"` + "`" + `date '+%FT%T.%N%:z'` + "`" + `\"}}" | jq -c '.'
 echo "{\"studioml\": {\"host\": \"{{.Hostname}}\"}}" | jq -c '.'
-echo "Using env"
-{{if .Env}}
-{{range $key, $value := .Env}}
-export {{$key}}="{{$value}}"
-{{end}}
-{{end}}
-echo "Done env"
 export LD_LIBRARY_PATH={{.CudaDir}}:$LD_LIBRARY_PATH:/usr/local/cuda/lib64/:/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu/
 mkdir -p {{.E.RootDir}}/blob-cache
 mkdir -p {{.E.RootDir}}/queue
@@ -394,7 +396,12 @@ date -u
 nvidia-smi 2>/dev/null || true
 echo "{\"studioml\": {\"stop_time\": \"` + "`" + `date '+%FT%T.%N%:z'` + "`" + `\"}}" | jq -c '.'
 exit $result
-`)
+`
+	// Now, we have to do this trick and replace '@' with '`'
+	// to get our script correctly.
+	// Problem with "raw" Golang strings is that we cannot use '`' anywhere inside it.
+	scriptText = strings.Replace(scriptText, "@", "`", -1)
+	tmpl, errGo := template.New("pythonRunner").Parse(scriptText)
 
 	if errGo != nil {
 		return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
