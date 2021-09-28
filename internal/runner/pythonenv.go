@@ -271,16 +271,16 @@ function redact_env() {
     unsafe_key_fragments="ACCOUNT AUTH CREDENTIALS KEY PASS SECRET TOKEN USER"
 
     # Get a list of env var keys
-    keys=@printenv | awk 'BEGIN { FS = "=" } ; { print $1 }'@
+    keys=@bckprintenv | awk 'BEGIN { FS = "=" } ; { print $1 }'@bck
     for key in $keys
     do
         # Find each value of each key in the env
-        value=@printenv | grep "${key}=" | awk 'BEGIN { FS = "=" } ; { print $2 }'@
+        value=@bckprintenv | grep "${key}=" | awk 'BEGIN { FS = "=" } ; { print $2 }'@bck
 
         # Loop through each unsafe key fragment to see if the key has a piece
         for unsafe_key_fragment in $unsafe_key_fragments
         do
-            unsafe_found=@echo ${key} | grep ${unsafe_key_fragment}@
+            unsafe_found=@bckecho ${key} | grep ${unsafe_key_fragment}@bck
             if [ "x${unsafe_found}" != "x" ]
             then
                 # The key has a piece. Redact the contents when spitting out env.
@@ -400,7 +400,7 @@ exit $result
 	// Now, we have to do this trick and replace '@' with '`'
 	// to get our script correctly.
 	// Problem with "raw" Golang strings is that we cannot use '`' anywhere inside it.
-	scriptText = strings.Replace(scriptText, "@", "`", -1)
+	scriptText = strings.Replace(scriptText, "@bck", "`", -1)
 	tmpl, errGo := template.New("pythonRunner").Parse(scriptText)
 
 	if errGo != nil {
