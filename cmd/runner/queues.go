@@ -425,6 +425,12 @@ func (qr *Queuer) startFetch(ctx context.Context, request *SubRequest) {
 	for {
 		select {
 		case <-check.C:
+
+			if MaxConcurrentTasksReached() {
+				logger.Debug("max number of concurrent tasks reached, delaying", "max tasks", *maxConcurrentTasksOpt)
+				continue
+			}
+			
 			if delayUntil, isPresent := backoffs.Get(request.project + ":" + request.subscription); isPresent {
 				delayLeft := time.Until(delayUntil)
 				if delayLeft >= 0 {
