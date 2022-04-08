@@ -89,8 +89,8 @@ func RunScript(ctx context.Context, scriptPath string, output *os.File,
 	cmd := exec.CommandContext(stopCmd, "/bin/bash", "-c", "export TMPDIR="+tmpDir+"; "+filepath.Clean(scriptPath))
 	cmd.Dir = path.Dir(scriptPath)
 
-	cmd.Stdout = nil
-	cmd.Stderr = nil
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	//ASD hack
 	//	// Pipes are used to allow the output to be tracked interactively from the cmd
