@@ -10,6 +10,7 @@ package runner
 //
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -162,6 +163,15 @@ func (cache *ArtifactCache) Fetch(ctx context.Context, art *request.Artifact, pr
 		// size, warns, err = storage.Gather(ctx, "metadata/", dest)
 	default:
 		size, warns, err = storage.Fetch(ctx, art.Key, art.Unpack, dest, maxBytes)
+
+		fmt.Printf(">>>>> ART FETCH\n")
+		for _, warn := range warns {
+			fmt.Printf("FETCH W: group: %s w: %s\n", group, warn.Error())
+		}
+		if err != nil {
+			fmt.Printf("FETCH E: group: %s err: %s\n", group, err.Error())
+		}
+
 	}
 	storage.Close()
 

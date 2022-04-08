@@ -119,7 +119,7 @@ func cacheReporter(ctx context.Context) {
 	for {
 		select {
 		case err := <-artifactCache.ErrorC:
-			logger.Info("artifact cache error", "error", err, "stack", stack.Trace().TrimRuntime())
+			logger.Info("artifact cache error", "error", err.Error(), "stack", stack.Trace().TrimRuntime())
 		case <-ctx.Done():
 			return
 		}
@@ -368,19 +368,14 @@ func (p *processor) fetchAll(ctx context.Context) (err kv.Error) {
 			continue
 		}
 
-		// This artifact is downloaded during the runtime pass not beforehand
-		if group == "_singularity" {
-			continue
-		}
-
 		// Extract all available artifacts into subdirectories of the main experiment directory.
 		//
 		// The current convention is that the archives include the directory name under which
 		// the files are unpacked in their table of contents
 		//
 		size, warns, err := artifactCache.Fetch(ctx, artifact.Clone(), p.Request.Config.Database.ProjectId, group, diskBudget, p.ExprEnvs, p.ExprDir)
-		diskBudget -= size
 
+		diskBudget -= size
 		if diskBudget < 0 {
 			err = kv.NewError("disk budget exhausted")
 		}

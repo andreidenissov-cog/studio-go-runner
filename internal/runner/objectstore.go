@@ -246,7 +246,7 @@ func InitObjStore(ctx context.Context, backing string, size int64, removedC chan
 	}
 
 	select {
-	case errorC <- kv.NewError("cache enabled").With("stack", stack.Trace().TrimRuntime()):
+	case errorC <- kv.NewError("artifacts cache enabled").With("stack", stack.Trace().TrimRuntime()):
 	default:
 	}
 
