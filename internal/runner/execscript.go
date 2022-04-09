@@ -89,75 +89,13 @@ func RunScript(ctx context.Context, scriptPath string, output *os.File,
 	cmd := exec.CommandContext(stopCmd, "/bin/bash", "-c", "export TMPDIR="+tmpDir+"; "+filepath.Clean(scriptPath))
 	cmd.Dir = path.Dir(scriptPath)
 
-	// Pipes are used to allow the output to be tracked interactively from the cmd
-	stdout, errGo := cmd.StdoutPipe()
-	if errGo != nil {
-		return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
-	}
-	stderr, errGo := cmd.StderrPipe()
-	if errGo != nil {
-		return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
-	}
-
-	outC := make(chan string)
-	defer close(outC)
-	errC := make(chan string)
-	defer close(errC)
-
-	// A quit channel is used to allow fine grained control over when the IO
-	// copy and output task should be created
-	stopOutput := make(chan struct{}, 1)
-
-	// Being the go routine that takes cmd output and appends it to a file on disk
-	go procOutput(stopOutput, output, outC, errC)
-
-	// Start begins the processing asynchronously, the procOutput above will collect the
-	// run results are they are output asynchronously
-	if errGo = cmd.Start(); errGo != nil {
-		return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
-	}
-
-	// This code connects the pipes being used by the golang exec command process to the channels that
-	// will be used to bring the output into a single file
-	waitOnIO := sync.WaitGroup{}
-	waitOnIO.Add(2)
-
-	var errStdOut error
-	var errErrOut error
-
-	go readToChan(stdout, outC, &waitOnIO, &errStdOut)
-	go readToChan(stderr, errC, &waitOnIO, &errErrOut)
-
-	// Wait for the IO to stop before continuing to tell the background
-	// writer to terminate. This means the IO for the process will
-	// be able to send on the channels until they have stopped.
-	waitOnIO.Wait()
-
-	// Now manually stop the process output copy goroutine once the exec package
-	// has finished
-	close(stopOutput)
-
-	if errStdOut != nil {
-		if err == nil || err == os.ErrClosed {
-			err = kv.Wrap(errStdOut).With("stack", stack.Trace().TrimRuntime())
-		}
-	}
-	if errErrOut != nil {
-		if err == nil || err == os.ErrClosed {
-			err = kv.Wrap(errErrOut).With("stack", stack.Trace().TrimRuntime())
-		}
-	}
-
-	// Wait for the process to exit, and store any error code if possible
-	// before we continue to wait on the processes output devices finishing
-	if errGo = cmd.Wait(); errGo != nil {
+	outBytes, errGo := cmd.CombinedOutput()
+	if errGo == nil {
+		output.Write(outBytes)
+	} else {
 		if err == nil {
 			err = kv.Wrap(errGo).With("loc", "cmd.Wait()").With("stack", stack.Trace().TrimRuntime())
 		}
-	}
-
-	if err == nil && stopCmd.Err() != nil {
-		err = kv.Wrap(stopCmd.Err()).With("loc", "stopCmd").With("stack", stack.Trace().TrimRuntime())
 	}
 
 	return err
