@@ -65,7 +65,7 @@ func RunScript(ctx context.Context, scriptPath string, outputPath string, tmpDir
 	// Move to starting the process that we will monitor
 	// #nosec
 	//cmd := exec.Command("/bin/bash", "-c", "export TMPDIR="+tmpDir+"; "+filepath.Clean(scriptPath))
-	cmd := exec.Command(filepath.Clean(scriptPath), "> "+outputPath+" 2>&1")
+	cmd := exec.Command(filepath.Clean(scriptPath), ">"+outputPath+" 2>&1")
 	cmd.Dir = path.Dir(scriptPath)
 
 	// This code connects the pipes being used by the golang exec command process to the channels that
