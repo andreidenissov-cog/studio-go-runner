@@ -8,6 +8,7 @@ package runner
 import (
 	"bytes"
 	"context"
+	"errors"
 	"github.com/andreidenissov-cog/go-service/pkg/log"
 	"io/ioutil"
 	"os"
@@ -298,18 +299,18 @@ exit $result
 //
 func (p *VirtualEnv) Run(ctx context.Context, refresh map[string]request.Artifact) (err kv.Error) {
 	// Prepare an output file into which the command line stdout and stderr will be written
-	//outputFN := filepath.Join(p.workDir, "output")
-	//if errGo := os.Mkdir(outputFN, 0600); errGo != nil {
-	//	perr, ok := errGo.(*os.PathError)
-	//	if ok {
-	//		if !errors.Is(perr.Err, os.ErrExist) {
-	//			return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
-	//		}
-	//	} else {
-	//		return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
-	//	}
-	//}
-	//outputFN = filepath.Join(outputFN, "output")
+	outputFN := filepath.Join(p.workDir, "output")
+	if errGo := os.Mkdir(outputFN, 0600); errGo != nil {
+		perr, ok := errGo.(*os.PathError)
+		if ok {
+			if !errors.Is(perr.Err, os.ErrExist) {
+				return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
+			}
+		} else {
+			return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
+		}
+	}
+	outputFN = filepath.Join(outputFN, "output")
 	//
 	//fOutput, errGo := os.Create(outputFN)
 	//if errGo != nil {
@@ -317,7 +318,6 @@ func (p *VirtualEnv) Run(ctx context.Context, refresh map[string]request.Artifac
 	//}
 	//defer fOutput.Close()
 
-	outputFN := filepath.Join(p.workDir, "output", "output")
 	err = RunScript(ctx, p.Script, outputFN, "", p.Request.Experiment.Key, p.logger)
 	p.venvEntry.removeClient(p.uniqueID)
 	return err

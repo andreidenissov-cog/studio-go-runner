@@ -8,10 +8,12 @@ package runner
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/andreidenissov-cog/go-service/pkg/log"
 	"hash/fnv"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -98,25 +100,24 @@ func (entry *VirtualEnvEntry) create(ctx context.Context, rqst *request.Request,
 
 	// Script to build virtual environment is generated, let's run it:
 	// Prepare an output file into which the command line stdout and stderr will be written
-	//outputFN := filepath.Join(expDir, "output")
-	//if errGo := os.Mkdir(outputFN, 0600); errGo != nil {
-	//	perr, ok := errGo.(*os.PathError)
-	//	if ok {
-	//		if !errors.Is(perr.Err, os.ErrExist) {
-	//			return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
-	//		}
-	//	} else {
-	//		return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
-	//	}
-	//}
-	//outputFN = filepath.Join(outputFN, "outputPEnv")
+	outputFN := filepath.Join(expDir, "output")
+	if errGo := os.Mkdir(outputFN, 0600); errGo != nil {
+		perr, ok := errGo.(*os.PathError)
+		if ok {
+			if !errors.Is(perr.Err, os.ErrExist) {
+				return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
+			}
+		} else {
+			return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
+		}
+	}
+	outputFN = filepath.Join(outputFN, "outputPEnv")
 	//fOutput, errGo := os.Create(outputFN)
 	//if errGo != nil {
 	//	return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
 	//}
 	//defer fOutput.Close()
 
-	outputFN := filepath.Join(expDir, "output", "outputPEnv")
 	if err = RunScript(ctx, scriptPath, outputFN, tmpDir, entry.uniqueID, entry.host.logger); err != nil {
 		return err.With("script", scriptPath).With("stack", stack.Trace().TrimRuntime())
 	}
@@ -137,26 +138,24 @@ func (entry *VirtualEnvEntry) delete(ctx context.Context) (err kv.Error) {
 
 	// Script to delete virtual environment is generated, let's run it:
 	// Prepare an output file into which the command line stdout and stderr will be written
-	//outputFN := filepath.Join(entry.host.rootDir, "rmvenv")
-	//if errGo := os.Mkdir(outputFN, 0700); errGo != nil {
-	//	perr, ok := errGo.(*os.PathError)
-	//	if ok {
-	//		if !errors.Is(perr.Err, os.ErrExist) {
-	//			return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
-	//		}
-	//	} else {
-	//		return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
-	//	}
-	//}
-	//outputFN = filepath.Join(outputFN, fmt.Sprintf("output-%s", entry.uniqueID))
+	outputFN := filepath.Join(entry.host.rootDir, "rmvenv")
+	if errGo := os.Mkdir(outputFN, 0700); errGo != nil {
+		perr, ok := errGo.(*os.PathError)
+		if ok {
+			if !errors.Is(perr.Err, os.ErrExist) {
+				return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
+			}
+		} else {
+			return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
+		}
+	}
+	outputFN = filepath.Join(outputFN, fmt.Sprintf("output-%s", entry.uniqueID))
 	//fOutput, errGo := os.Create(outputFN)
 	//if errGo != nil {
 	//	return kv.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
 	//}
 	//defer fOutput.Close()
 
-	outputFN := filepath.Join(entry.host.rootDir, "rmvenv")
-	outputFN = filepath.Join(outputFN, fmt.Sprintf("output-%s", entry.uniqueID))
 	if err = RunScript(ctx, scriptPath, outputFN, "", entry.uniqueID, entry.host.logger); err != nil {
 		return err.With("script", scriptPath).With("stack", stack.Trace().TrimRuntime())
 	}
